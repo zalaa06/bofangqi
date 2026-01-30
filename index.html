@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简易 M3U8 在线播放器</title>
+<style>
+  body { 
+    font-family: Arial, sans-serif; 
+    background-color: #f5f5f5; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    padding: 20px; 
+  }
+  #videoContainer { 
+    width: 80%; 
+    max-width: 800px; 
+    background: #000; 
+    border-radius: 8px; 
+    overflow: hidden; 
+  }
+  video { 
+    width: 100%; 
+    height: auto; 
+    display: block; 
+  }
+  #urlInput { 
+    width: 80%; 
+    max-width: 800px; 
+    margin-top: 15px; 
+    padding: 8px; 
+    font-size: 1em; 
+  }
+  #playBtn { 
+    margin-top: 10px; 
+    padding: 10px 20px; 
+    font-size: 1em; 
+    cursor: pointer; 
+  }
+</style>
+</head>
+<body>
+<h2>简易 M3U8 在线播放器</h2>
+
+<div id="videoContainer">
+  <video id="video" controls></video>
+</div>
+
+<input type="text" id="urlInput" placeholder="请输入 M3U8 视频流地址" />
+<button id="playBtn">播放</button>
+
+<!-- 引入 HLS.js 库 -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+  const video = document.getElementById('video');
+  const playBtn = document.getElementById('playBtn');
+  const urlInput = document.getElementById('urlInput');
+
+  // 监听播放按钮点击事件
+  playBtn.addEventListener('click', () => {
+    const videoUrl = urlInput.value.trim();
+    if (!videoUrl) {
+      alert('请输入有效的 M3U8 地址');
+      return;
+    }
+
+    // 清理上一次的播放器实例
+    if (window.hls) {
+      window.hls.destroy();
+    }
+
+    // 检查浏览器是否原生支持 HLS（如 Safari）
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoUrl;
+      video.play();
+    } else if (Hls.isSupported()) {
+      // 初始化 Hls.js 播放器
+      const hls = new Hls();
+      window.hls = hls; // 便于调试
+
+      // 绑定媒体源
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+        console.log('媒体源已绑定，开始加载视频...');
+        hls.loadSource(videoUrl);
+      });
+
+      // 当清单（M3U8 文件）解析完成后自动播放
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('M3U8 清单解析完成，开始播放');
+        video.play();
+      });
+
+      // 错误处理
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('播放错误:', data);
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('网络错误，尝试重新加载...');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('媒体错误，尝试恢复...');
+              hls.recoverMediaError();
+              break;
+            default:
+              console.error('不可恢复的错误，销毁播放器');
+              hls.destroy();
+              break;
+          }
+        }
+      });
+    } else {
+      alert('当前浏览器不支持播放 M3U8 流');
+    }
+  });
+</script>
+</body>
+</html>
