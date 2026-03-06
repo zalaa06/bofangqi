@@ -1,120 +1,252 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>简易 M3U8 在线播放器</title>
-<style>
-  body { 
-    font-family: Arial, sans-serif; 
-    background-color: #f5f5f5; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    padding: 20px; 
-  }
-  #videoContainer { 
-    width: 80%; 
-    max-width: 800px; 
-    background: #000; 
-    border-radius: 8px; 
-    overflow: hidden; 
-  }
-  video { 
-    width: 100%; 
-    height: auto; 
-    display: block; 
-  }
-  #urlInput { 
-    width: 80%; 
-    max-width: 800px; 
-    margin-top: 15px; 
-    padding: 8px; 
-    font-size: 1em; 
-  }
-  #playBtn { 
-    margin-top: 10px; 
-    padding: 10px 20px; 
-    font-size: 1em; 
-    cursor: pointer; 
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3U8 毛玻璃播放器</title>
+    <!-- 引入 hls.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        /* 1. 基础重置与动态背景 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+            overflow: hidden; /* 防止背景球撑开滚动条 */
+            color: white;
+        }
+
+        /* 背景装饰球（为了让毛玻璃效果更明显） */
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            animation: move 10s infinite alternate;
+        }
+
+        .shape-1 {
+            width: 300px;
+            height: 300px;
+            background: #e94560;
+            top: 10%;
+            left: 20%;
+        }
+
+        .shape-2 {
+            width: 400px;
+            height: 400px;
+            background: #533483;
+            bottom: 10%;
+            right: 10%;
+            animation-delay: -5s;
+        }
+
+        @keyframes move {
+            from { transform: translate(0, 0); }
+            to { transform: translate(50px, 50px); }
+        }
+
+        /* 2. 毛玻璃主容器 */
+        .player-container {
+            width: 90%;
+            max-width: 800px;
+            padding: 30px;
+            
+            /* 核心毛玻璃属性 */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px); /* Safari 兼容 */
+            
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h2 {
+            text-align: center;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* 3. 输入框和按钮区域 */
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            outline: none;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        input[type="text"]:focus {
+            background: rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        button {
+            padding: 12px 30px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* 4. 视频播放区域 */
+        .video-wrapper {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: black;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            aspect-ratio: 16 / 9; /* 保持 16:9 比例 */
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 600px) {
+            .input-group {
+                flex-direction: column;
+            }
+            .player-container {
+                padding: 20px;
+                width: 95%;
+            }
+        }
+    </style>
 </head>
 <body>
-<h2>简易 M3U8 在线播放器</h2>
 
-<div id="videoContainer">
-  <video id="video" controls></video>
-</div>
+    <!-- 背景装饰 -->
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
 
-<input type="text" id="urlInput" placeholder="请输入 M3U8 视频流地址" />
-<button id="playBtn">播放</button>
+    <!-- 主播放器容器 -->
+    <div class="player-container">
+        <h2>M3U8 Player</h2>
+        
+        <div class="input-group">
+            <input type="text" id="streamUrl" placeholder="请输入 .m3u8 直播源地址" value="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8">
+            <button onclick="playStream()">播放</button>
+        </div>
 
-<!-- 引入 HLS.js 库 -->
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script>
-  const video = document.getElementById('video');
-  const playBtn = document.getElementById('playBtn');
-  const urlInput = document.getElementById('urlInput');
+        <div class="video-wrapper">
+            <video id="video" controls playsinline></video>
+        </div>
+    </div>
 
-  // 监听播放按钮点击事件
-  playBtn.addEventListener('click', () => {
-    const videoUrl = urlInput.value.trim();
-    if (!videoUrl) {
-      alert('请输入有效的 M3U8 地址');
-      return;
-    }
+    <script>
+        var video = document.getElementById('video');
+        var input = document.getElementById('streamUrl');
+        var hls = null;
 
-    // 清理上一次的播放器实例
-    if (window.hls) {
-      window.hls.destroy();
-    }
+        function playStream() {
+            var url = input.value.trim();
+            if (!url) {
+                alert("请输入有效的 m3u8 地址");
+                return;
+            }
 
-    // 检查浏览器是否原生支持 HLS（如 Safari）
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = videoUrl;
-      video.play();
-    } else if (Hls.isSupported()) {
-      // 初始化 Hls.js 播放器
-      const hls = new Hls();
-      window.hls = hls; // 便于调试
-
-      // 绑定媒体源
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-        console.log('媒体源已绑定，开始加载视频...');
-        hls.loadSource(videoUrl);
-      });
-
-      // 当清单（M3U8 文件）解析完成后自动播放
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('M3U8 清单解析完成，开始播放');
-        video.play();
-      });
-
-      // 错误处理
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('播放错误:', data);
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error('网络错误，尝试重新加载...');
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error('媒体错误，尝试恢复...');
-              hls.recoverMediaError();
-              break;
-            default:
-              console.error('不可恢复的错误，销毁播放器');
-              hls.destroy();
-              break;
-          }
+            // 1. 检查是否支持 HLS.js (非原生支持 HLS 的浏览器，如 Chrome PC版)
+            if (Hls.isSupported()) {
+                if (hls) {
+                    hls.destroy(); // 销毁旧实例
+                }
+                hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play().catch(e => console.log("自动播放被拦截，请手动点击播放"));
+                });
+                
+                // 错误处理
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.log("网络错误，尝试恢复...");
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.log("媒体错误，尝试恢复...");
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                console.log("无法恢复的错误，销毁实例");
+                                hls.destroy();
+                                break;
+                        }
+                    }
+                });
+            }
+            // 2. 检查是否原生支持 HLS (如 Safari, 移动端浏览器)
+            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            } else {
+                alert("您的浏览器不支持 HLS 播放。");
+            }
         }
-      });
-    } else {
-      alert('当前浏览器不支持播放 M3U8 流');
-    }
-  });
-</script>
+
+        // 支持按回车键播放
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                playStream();
+            }
+        });
+
+        // 页面加载完成后自动尝试播放默认地址（可选）
+        // window.onload = playStream;
+    </script>
+
 </body>
 </html>
